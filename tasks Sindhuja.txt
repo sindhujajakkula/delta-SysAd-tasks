@@ -1,0 +1,162 @@
+Sindhuja J
+111119046
+1st year Mechanical 
+
+------------------------------------------------------------
+
+
+Main Task
+------------------------------------------------------------
+1. Create accounts and home directories for the following users in the given formats (alias - userGenerate):
+        ChiefCommander
+        ArmyGeneral, NavyMarshal and AirForceChief
+        50 soldiers under each category named in the format: Army1 to Army50, Navy1 to Navy50, and Airforce1 to AirForce50.
+------------------------------------------------------------
+#!/bin/bash
+
+ for i in ChiefCommander ArmyGeneral NavyMarshal AirForceChief
+   do
+     sudo useradd -m -d /home/$i $i 
+     passwd $i
+   done
+
+ for a in Army Navy Airforce
+   do
+     for i in {1..50}
+       do
+         sudo useradd -m -d /home/$a$i $a$i
+         passwd $a$i
+       done
+   done
+
+------------------------------------------------------------
+2. Assign them permissions as follows (alias - permit):
+        The chief commander can access and modify any directory.
+        The troop chiefs can access and modify any directory of their own troops and their own directory as well.
+        The soldiers can only access and modify their own directories.
+        Troop chiefs should not be able to access or modify any other troop chief's, any other troop soldier’s, or the chief commander's directory.
+------------------------------------------------------------
+#!/bin/bash
+
+sudo groupadd Army 
+sudo groupadd Navy
+sudo groupadd Airforce
+ 
+sudo usermod -a -G Army,Navy,Airforce ChiefCommander
+sudo usermod -a -G Army ArmyGeneral
+sudo usermod -a -G Navy NavyMarshal
+sudo usermod -a -G Airforce AirForceChief
+
+ for a in Army Navy Airforce
+   do
+     for i in {1..50}
+       do
+         chown $a$i.$a /home/$a$i
+         chmod 770 /home/$a$i
+       done
+   done
+
+chown ArmyGeneral.Army /home/ArmyGeneral
+chmod -R 770 /home/ArmyGeneral
+chown NavyMarshal.Navy /home/NavyMarshal
+chmod -R 770 /home/NavyMarshal
+chown AirForceChief.Airforce /home/AirForceChief
+chmod -R 770 /home/AirForceChief
+chmod 700 /home/ChiefCommander
+------------------------------------------------------------
+3. You have been given a log file with time-stamps, username and the duty positions allotted to each soldier (position.log). Write a script for the following sub tasks (alias - autoSchedule):
+        Create a text file named post_allotted in each soldier's home directory.
+        Each file should have a table with 2 columns: Date and Post.
+        Every day at 12 am there should be a scheduled update in each soldier’s table with their respective post for the next day.
+------------------------------------------------------------
+#!/bin/bash
+
+ for a in Army Navy Airforce
+   do
+     for i in {1..50}
+       do
+         touch /home/$a$i/post_allotted.txt
+         printf "Date	       Post\n" > /home/$a$i/post_allotted.txt
+       done
+   done
+
+---------------
+crontab -e
+00 00 * * * /bin/bash /home/ChiefCommander/a3.sh
+---------------
+#following code is in file and name is "a3.sh"
+#!/bin/bash
+
+tdDate1="$(date +%Y-%m-%d)"
+ for a in Army Navy Airforce
+   do
+     for i in {1..50}
+       do
+         tdl="$(grep $tdDate1 position.log | grep -w $a$i)"
+         IFS=' ' 
+         read -ra lArry <<< "$tdl" 
+         strDate="${lArry[0]}"
+         subDate=${strDate:1:10}
+         printf  "$subDate     ${lArry[2]} ${lArry[3]}\n" >> /home/$a$i/post_allotted.txt
+       done
+   done 
+
+------------------------------------------------------------
+4. Every day each soldier has to report at the post allotted to them. You are given an attendance log of whether the soldier was present. Write a script to automate the given sub tasks (alias - attendance):
+        Create a text file in every troop chief’s home directory named attendance_record.
+        This file should have a table with soldiers who were present at the posts allotted to them.
+        This file should automatically update every morning at 6 am. You have been given another log file with the attendance record. (attendance.log)
+------------------------------------------------------------
+#!/bin/bash
+
+for a in Army Navy Airforce
+   do
+     touch /home/$a/attendance_record.txt
+     printf "Date	       Soldier\n" > /home/$a/attendance_record.txt
+   done
+---------------
+crontab -e
+00 06 * * * /bin/bash /home/ChiefCommander/attend.sh
+---------------
+#file name = attend.sh
+#!/bin/bash
+tdDate1="$(date +%Y-%m-%d)"
+ for a in Army Navy Airforce
+   do
+     for i in {1..50}
+       do
+         tdla="$(grep $tdDate1 attendance.log | grep -w $a$i)"
+         IFS=' ' 
+         read -ra lArrya <<< "$tdla" 
+         if [ ${lArrya[2]} = "YES" ]
+         then
+           strDate="${lArrya[0]}"
+           subDate=${strDate:1:10}
+           printf "$subDate     ${lArrya[1]}\n" >> /home/$a/attendance_record.txt
+         fi
+       done
+   done  
+
+------------------------------------------------------------
+5. Develop a script for each troop chief to fetch the attendance records of a day in a week (alias – record):
+        For example, if the troop chief types "record 4" the script will show the attendance records of the 4th day of the previous week, that is Thursday. Set up the script to handle the variable accordingly.
+------------------------------------------------------------
+#example for troop chief army
+#!/bin/bash
+
+declare -i tn="$(date +%w)" 
+declare -i gn=$1  
+if [ $gn -ge $tn ]
+then
+    dd=$(( tn + 6 - gn + 1 ))
+    pdate="$(date +%Y%m%d -d "-$dd days")"
+    grep $pdate /home/Army/attendance_record.txt >> /home/Army/attendance_lastweekday.txt
+else
+    dd=$(( tn - gn ))
+    pdate="$(date +%Y%m%d -d "-$dd days")"
+    grep $pdate /home/Army/attendance_record.txt >> /home/Army/attendance_lastweekday.txt
+fi
+
+------------------------------------------------------------
+
+
